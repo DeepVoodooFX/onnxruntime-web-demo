@@ -3,7 +3,7 @@
     modelName="Yolo"
     :hasWebGL="hasWebGL"
     :modelFilepath="modelFilepath"
-    :imageSize="416"
+    :imageSize="224"
     :imageUrls="imageUrls"
     :warmupModel="warmupModel"
     :preprocess="preprocess"
@@ -21,7 +21,7 @@ import { YOLO_IMAGE_URLS } from "../../data/sample-image-urls";
 import { Tensor, InferenceSession } from "onnxruntime-web";
 
 const MODEL_FILEPATH_PROD = `/onnxruntime-web-demo/yolo.onnx`;
-const MODEL_FILEPATH_DEV = "/yolo.onnx";
+const MODEL_FILEPATH_DEV = "/Vladimir Putin.onnx";
 
 @Component({
   components: {
@@ -43,44 +43,47 @@ export default class Yolo extends Vue {
   }
 
   warmupModel(session: InferenceSession) {
-    return runModelUtils.warmupModel(session, [1, 3, 416, 416]);
+    return runModelUtils.warmupModel(session, [1, 224, 224, 3]);
   }
 
   preprocess(ctx: CanvasRenderingContext2D): Tensor {
     const imageData = ctx.getImageData(
       0,
       0,
-      ctx.canvas.width,
-      ctx.canvas.height
+      224,
+      224
     );
     const { data, width, height } = imageData;
     // data processing
     const dataTensor = ndarray(new Float32Array(data), [width, height, 4]);
+    console.log(dataTensor)
     const dataProcessedTensor = ndarray(new Float32Array(width * height * 3), [
       1,
-      3,
       width,
       height,
+      3,
     ]);
 
     ops.assign(
-      dataProcessedTensor.pick(0, 0, null, null),
+      dataProcessedTensor.pick(0, null, null, 0),
       dataTensor.pick(null, null, 0)
     );
     ops.assign(
-      dataProcessedTensor.pick(0, 1, null, null),
+      dataProcessedTensor.pick(0, null, null, 1),
       dataTensor.pick(null, null, 1)
     );
     ops.assign(
-      dataProcessedTensor.pick(0, 2, null, null),
+      dataProcessedTensor.pick(0, null, null, 2),
       dataTensor.pick(null, null, 2)
     );
 
+    ops.divseq(dataProcessedTensor, 255);
+
     const tensor = new Tensor("float32", new Float32Array(width * height * 3), [
       1,
-      3,
       width,
       height,
+      3,
     ]);
     (tensor.data as Float32Array).set(dataProcessedTensor.data);
     return tensor;
@@ -88,33 +91,36 @@ export default class Yolo extends Vue {
 
   async postprocess(tensor: Tensor, inferenceTime: number) {
     try {
+      console.log(tensor)
       const originalOutput = new Tensor(
         "float32",
         tensor.data as Float32Array,
-        [1, 125, 13, 13]
+        [1, 224, 224, 3]
       );
-      const outputTensor = yoloTransforms.transpose(
-        originalOutput,
-        [0, 2, 3, 1]
-      );
+      console.log(originalOutput.data.map(x => x*255))
+      const intData = new Uint8ClampedArray(originalOutput.data.map(x => x*255))
+      const canvas = document.getElementById('input-canvas');
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.createImageData(224, 224);
+      var width = 224,
+      height = 224,
+      buffer = new Uint8ClampedArray(width * height * 4); // have enough bytes
+      for(var y = 0; y < height; y++) {
+        for(var x = 0; x < width; x++) {
+            var pos = (y * width + x) * 4; // position in buffer based on x and y
+            var pos2 = (y * width + x) * 3; // position in buffer based on x and y
+            buffer[pos  ] = intData[pos2]           // some R value [0, 255]
+            buffer[pos+1] = intData[pos2+1];           // some G value
+            buffer[pos+2] = intData[pos2+2];           // some B value
+            buffer[pos+3] = 255;           // set alpha channel
+        }
+      }
+      imageData.data.set(buffer);
+      ctx.putImageData(imageData, 0, 0);
 
-      // postprocessing
-      const boxes = await yolo.postprocess(outputTensor, 20);
-      boxes.forEach((box) => {
-        const { top, left, bottom, right, classProb, className } = box;
-
-        this.drawRect(
-          left,
-          top,
-          right - left,
-          bottom - top,
-          `${className} Confidence: ${Math.round(
-            classProb * 100
-          )}% Time: ${inferenceTime.toFixed(1)}ms`
-        );
-      });
     } catch (e) {
       alert("Model is not valid!");
+      console.log(e)
     }
   }
 

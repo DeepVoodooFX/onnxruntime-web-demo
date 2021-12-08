@@ -38,7 +38,7 @@ export async function runModel(model: InferenceSession, preprocessedData: Tensor
     const outputData = await model.run(feeds);
     const end = new Date();
     const inferenceTime = (end.getTime() - start.getTime());
-    const output = outputData[model.outputNames[0]];
+    const output = outputData[model.outputNames[1]];
 
     return [output, inferenceTime];
   } catch (e) {

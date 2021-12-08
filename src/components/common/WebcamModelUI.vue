@@ -37,11 +37,11 @@
 
       <v-layout row wrap justify-space-around class="webcam-panel elevation-1">
         <div class="webcam-container" id="webcam-container" display="none">
-          <video playsinline muted id="webcam" width="416" height="416"></video>
+          <video playsinline muted id="webcam" width="224" height="224"></video>
           <canvas
             id="input-canvas"
-            width="416"
-            height="416"
+            width="224"
+            height="224"
             style="position: absolute"
             v-show="!webcamEnabled"
           ></canvas>
@@ -571,8 +571,8 @@ export default class WebcamModelUI extends Vue {
   border-radius: 5px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
   margin: 0 auto;
-  width: 416px;
-  height: 416px;
+  width: 224;
+  height: 224;
   position: relative;
   display: flex;
   align-items: center;
